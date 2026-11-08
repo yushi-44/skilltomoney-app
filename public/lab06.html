@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스킬투머니 실습실 · 6장</title>
+  <meta name="description" content="스킬투머니 실습실 6장 - JSON 변환과 구글 시트 행 추가 실습">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Skulpt 파이썬 브라우저 실행 엔진 -->
+  <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>
+  <style>
+    /* ==========================================================================
+       DESIGN SYSTEM & CSS VARIABLES (스킬투머니 정통 테마 동기화)
+       ========================================================================== */
+    :root {
+      /* Palette: Deep Trust Navy */
+      --navy-950: #050b17;
+      --navy-900: #0a1326;
+      --navy-850: #0f1c35;
+      --navy-800: #142444;
+      --navy-700: #1d335d;
+      --navy-600: #29477e;
+      --navy-border: rgba(41, 71, 126, 0.45);
+      --navy-glass: rgba(15, 28, 53, 0.72);
+      --navy-glass-card: rgba(18, 33, 62, 0.65);
+      --navy-hover: rgba(29, 51, 93, 0.85);
+
+      /* Palette: Luxurious Gold */
+      --gold-100: #fff9e6;
+      --gold-200: #feeebf;
+      --gold-300: #fbdc8a;
+      --gold-400: #f7c955;
+      --gold-500: #e5b331;
+      --gold-600: #ca9821;
+      --gold-700: #a17417;
+      --gold-gradient: linear-gradient(135deg, #fff2cc 0%, #fbdc8a 25%, #e5b331 60%, #b8861b 90%, #8c6411 100%);
+      --gold-gradient-glow: linear-gradient(135deg, #f7c955 0%, #e5b331 50%, #b8861b 100%);
+      --gold-border: rgba(229, 179, 49, 0.35);
+      --gold-glow: 0 0 25px rgba(229, 179, 49, 0.3);
+
+      /* Text Colors */
+      --text-white: #ffffff;
+      --text-gray-100: #f1f5f9;
+      --text-gray-300: #cbd5e1;
+      --text-gray-400: #94a3b8;
+      --text-gray-500: #64748b;
+
+      /* Accents */
+      --accent-cyan: #38bdf8;
+      --accent-emerald: #10b981;
+      --accent-red: #ef4444;
+
+      /* Shadows & Transitions */
+      --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+      --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+      --shadow-gold: 0 10px 30px rgba(229, 179, 49, 0.25);
+      --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      --font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--navy-950);
+      color: var(--text-gray-100);
+      font-family: var(--font-family);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image: 
+        radial-gradient(circle at 15% 10%, rgba(229, 179, 49, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.07) 0%, transparent 45%),
+        radial-gradient(circle at 50% 75%, rgba(20, 36, 68, 0.8) 0%, transparent 60%);
+      background-attachment: fixed;
+    }
+
+    /* ==========================================================================
+       TOP NAVIGATION BAR (맨 위 제목 띠: 스킬투머니 실습실 · 6장)
+       ========================================================================== */
+    .lab-header {
+      background: rgba(10, 19, 38, 0.9);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--navy-border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-symbol {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1b3054, #0b1528);
+      border: 1.5px solid var(--gold-400);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px rgba(229, 179, 49, 0.35);
+    }
+
+    .lab-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lab-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      background: var(--gold-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-block;
+      filter: drop-shadow(0 2px 8px rgba(229, 179, 49, 0.25));
+    }
+
+    .chapter-tag {
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      background: rgba(229, 179, 49, 0.12);
+      border: 1px solid var(--gold-border);
+      color: var(--gold-300);
+      backdrop-filter: blur(8px);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 10px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      transition: var(--transition);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-navy-outline {
+      background: var(--navy-glass);
+      color: var(--text-gray-100);
+      border: 1px solid var(--navy-border);
+      backdrop-filter: blur(10px);
+    }
+    .btn-navy-outline:hover {
+      background: var(--navy-hover);
+      border-color: var(--gold-border);
+      color: var(--gold-200);
+      transform: translateY(-2px);
+    }
+
+    .btn-gold {
+      background: var(--gold-gradient-glow);
+      color: #1a1200;
+      box-shadow: var(--shadow-gold);
+    }
+    .btn-gold:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(229, 179, 49, 0.45);
+      filter: brightness(1.08);
+    }
+
+    /* ==========================================================================
+       MAIN LAB WORKSPACE (왼쪽 웹앱 화면 + 오른쪽 코드 칸)
+       ========================================================================== */
+    .lab-workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      padding: 24px 28px;
+      max-width: 1540px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 1024px) {
+      .lab-workspace {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+    }
+
+    /* 공통 패널 */
+    .panel {
+      background: var(--navy-glass-card);
+      border: 1px solid var(--navy-border);
+      border-radius: 22px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-lg);
+      position: relative;
+    }
+
+    .panel-header {
+      background: rgba(10, 19, 38, 0.75);
+      border-bottom: 1px solid var(--navy-border);
+      padding: 16px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-white);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .panel-title-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--gold-400);
+      box-shadow: 0 0 10px rgba(229, 179, 49, 0.6);
+    }
+
+    .panel-body {
+      padding: 22px;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ==========================================================================
+       LEFT: 웹앱 화면
+       1. "예약 신청 · AI 자동화 (11월 7일)" 상자
+       2. "구글 시트 · 예약" 작은 표
+       ========================================================================== */
+    .card-box {
+      background: linear-gradient(145deg, rgba(20, 36, 68, 0.85) 0%, rgba(13, 24, 46, 0.95) 100%);
+      border: 1px solid var(--navy-border);
+      border-radius: 18px;
+      padding: 20px 22px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .box-heading {
+      font-size: 1.08rem;
+      font-weight: 800;
+      color: var(--text-white);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .box-heading-tag {
+      font-size: 0.75rem;
+      color: var(--gold-300);
+      background: rgba(229, 179, 49, 0.12);
+      border: 1px solid rgba(229, 179, 49, 0.3);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+
+    /* 폼 요소 */
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      flex: 1;
+      min-width: 130px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-gray-300);
+    }
+
+    .form-input {
+      background: #080e1b;
+      border: 1px solid rgba(41, 71, 126, 0.8);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    .form-input:focus {
+      border-color: var(--gold-400);
+      box-shadow: 0 0 12px rgba(229, 179, 49, 0.25);
+    }
+
+    .btn-submit-reserve {
+      width: 100%;
+      background: var(--gold-gradient-glow);
+      color: #1a1200;
+      font-size: 1rem;
+      font-weight: 800;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: var(--shadow-gold);
+      cursor: pointer;
+      border: none;
+      transition: var(--transition);
+    }
+
+    .btn-submit-reserve:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+      box-shadow: 0 10px 30px rgba(229, 179, 49, 0.45);
+    }
+
+    /* 결과 자리 (print 출력 내용) */
+    .result-section {
+      margin-top: 14px;
+      background: #060a14;
+      border: 1px solid rgba(41, 71, 126, 0.5);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: #38bdf8;
+      max-height: 120px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .result-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-gray-400);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* "구글 시트 · 예약" 표 상자 */
+    .sheet-table-wrap {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid var(--navy-border);
+      background: #070d1a;
+    }
+
+    .sheet-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    .sheet-table th {
+      background: #0e1a32;
+      color: var(--gold-300);
+      font-weight: 800;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--navy-border);
+      white-space: nowrap;
+    }
+
+    .sheet-table td {
+      padding: 10px 14px;
+      color: var(--text-gray-200);
+      border-bottom: 1px solid rgba(41, 71, 126, 0.25);
+      white-space: nowrap;
+    }
+
+    .sheet-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .sheet-table tr:hover td {
+      background: rgba(229, 179, 49, 0.05);
+    }
+
+    .empty-row-text {
+      text-align: center;
+      color: var(--text-gray-500);
+      padding: 24px !important;
+    }
+
+    /* ==========================================================================
+       RIGHT: 코드 칸 (파이썬 코드 편집 및 실행)
+       ========================================================================== */
+    .editor-wrapper {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      height: 100%;
+    }
+
+    .editor-container {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #codeEditor {
+      width: 100%;
+      flex: 1;
+      min-height: 440px;
+      background: #060d1b;
+      color: #f8fafc;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.95rem;
+      line-height: 1.65;
+      padding: 18px;
+      border: 1px solid rgba(41, 71, 126, 0.6);
+      border-radius: 14px;
+      resize: vertical;
+      outline: none;
+      tab-size: 4;
+      transition: var(--transition);
+    }
+
+    #codeEditor:focus {
+      border-color: var(--gold-400);
+      box-shadow: 0 0 15px rgba(229, 179, 49, 0.25);
+    }
+
+    /* 오류 안내 영역 */
+    #errorBox {
+      display: none;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 16px;
+      color: #fca5a5;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    #errorBox strong {
+      color: #ef4444;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      font-size: 0.98rem;
+    }
+
+    /* 푸터 */
+    .lab-footer {
+      background: #030812;
+      border-top: 1px solid var(--navy-border);
+      padding: 18px 24px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-gray-500);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 맨 위 제목 띠: "스킬투머니 실습실 · 6장" -->
+  <header class="lab-header">
+    <div class="brand-group">
+      <div class="logo-symbol">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="url(#goldGrad)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <defs>
+            <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#fff2cc" />
+              <stop offset="50%" stop-color="#e5b331" />
+              <stop offset="100%" stop-color="#8c6411" />
+            </linearGradient>
+          </defs>
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      </div>
+      <div class="lab-title-wrap">
+        <h1 class="lab-title">스킬투머니 실습실 · 6장</h1>
+        <span class="chapter-tag">JSON 변환 및 구글 시트 연동 실습</span>
+      </div>
+    </div>
+
+    <!-- 헤더 우측: [처음 코드로], [⬇ 코랩 노트북으로 받기] -->
+    <div class="header-actions">
+      <button type="button" class="btn btn-navy-outline" id="btnReset">처음 코드로</button>
+      <button type="button" class="btn btn-gold" id="btnDownload">⬇ 코랩 노트북으로 받기</button>
+    </div>
+  </header>
+
+  <!-- 실습실 본문 (2열 분할 레이아웃) -->
+  <main class="lab-workspace">
+    <!-- 왼쪽 웹앱 화면 -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="panel-title-dot"></span>
+          웹앱 화면
+        </div>
+      </div>
+      <div class="panel-body">
+        <!-- 1. "예약 신청 · AI 자동화 (11월 7일)" 상자 -->
+        <div class="card-box">
+          <div class="box-heading">
+            <span>예약 신청 · AI 자동화 (11월 7일)</span>
+            <span class="box-heading-tag">35,000원 / 석</span>
+          </div>
+
+          <div class="form-row">
+            <!-- 이름 칸 -->
+            <div class="form-group">
+              <label class="form-label" for="nameInput">이름</label>
+              <input type="text" id="nameInput" class="form-input" value="홍길동" placeholder="신청자 이름">
+            </div>
+
+            <!-- 인원 칸 -->
+            <div class="form-group">
+              <label class="form-label" for="peopleInput">인원 (명)</label>
+              <input type="number" id="peopleInput" class="form-input" value="2" min="1" max="8">
+            </div>
+          </div>
+
+          <!-- [신청] 버튼 -->
+          <button type="button" class="btn-submit-reserve" id="btnSubmit">
+            신청
+          </button>
+
+          <!-- 결과 자리 (print() 출력 내용) -->
+          <div class="result-section">
+            <div class="result-title">🖥️ 파이썬 실행 결과 출력 (print)</div>
+            <div id="outputResult">코드를 실행하면 결과가 여기에 표시됩니다.</div>
+          </div>
+        </div>
+
+        <!-- 2. "구글 시트 · 예약" 작은 표 상자 -->
+        <div class="card-box">
+          <div class="box-heading">
+            <span>구글 시트 · 예약</span>
+            <span class="box-heading-tag" id="sheetRowCount">총 0건 저장됨</span>
+          </div>
+
+          <div class="sheet-table-wrap">
+            <table class="sheet-table">
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>강좌</th>
+                  <th>이름</th>
+                  <th>연락처</th>
+                  <th>인원</th>
+                  <th>결제 금액</th>
+                </tr>
+              </thead>
+              <tbody id="sheetTableBody">
+                <tr id="emptyRow">
+                  <td colspan="6" class="empty-row-text">
+                    [신청]을 누르면 여기에 구글 시트 행이 쌓입니다.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 오른쪽 코드 칸 -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="panel-title-dot"></span>
+          파이썬 코드 (Python)
+        </div>
+        <button type="button" class="btn btn-gold" id="btnRun">
+          ▶ 코드 실행하기
+        </button>
+      </div>
+      <div class="panel-body editor-wrapper">
+        <div class="editor-container">
+          <textarea id="codeEditor" spellcheck="false"></textarea>
+        </div>
+
+        <!-- 오류 안내 영역 -->
+        <div id="errorBox">
+          <strong>⚠️ 파이썬 오류 안내</strong>
+          <div id="errorMessage"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 하단 안내 푸터 -->
+  <footer class="lab-footer">
+    © 2026 스킬투머니 (SkillToMoney) · 배운 기술을 돈으로 바꾸는 실전 파이썬 실습실
+  </footer>
+
+  <!-- ==========================================================================
+       실습실 동작 스크립트 (input() 매핑, print() 출력, row 표 누적 추가, ch06_lab.ipynb)
+       ========================================================================== -->
+  <script>
+    // 6장 처음 파이썬 코드
+    const INITIAL_CODE = `import json
+prices = {"AI 자동화": 35000, "숏폼 편집": 45000, "엑셀 실무": 30000}
+rsv = {"date": "2026-11-07", "course": "AI 자동화", "name": input("이름: "), "phone": "010-1111-2222", "people": int(input("인원: "))}
+rsv["total"] = prices[rsv["course"]] * rsv["people"]
+text = json.dumps(rsv, ensure_ascii=False)
+print("보내는 JSON:", text)
+
+data = json.loads(text)
+keys = ["date", "course", "name", "phone", "people", "total"]
+row = []
+for i in range(0, len(keys), 1):
+    row.append(data[keys[i]])
+print("시트에 추가되는 행:", row)`;
+
+    const codeEditor = document.getElementById("codeEditor");
+    const nameInput = document.getElementById("nameInput");
+    const peopleInput = document.getElementById("peopleInput");
+    const btnSubmit = document.getElementById("btnSubmit");
+    const btnRun = document.getElementById("btnRun");
+    const btnReset = document.getElementById("btnReset");
+    const btnDownload = document.getElementById("btnDownload");
+    const outputResult = document.getElementById("outputResult");
+    const sheetTableBody = document.getElementById("sheetTableBody");
+    const sheetRowCount = document.getElementById("sheetRowCount");
+    const errorBox = document.getElementById("errorBox");
+    const errorMessage = document.getElementById("errorMessage");
+
+    codeEditor.value = INITIAL_CODE;
+
+    // input() 호출 카운터 & print() 버퍼
+    let inputCallCount = 0;
+    let printOutputBuffer = [];
+    let savedRowCount = 0;
+
+    function outf(text) {
+      if (text) {
+        printOutputBuffer.push(text);
+      }
+    }
+
+    function builtinRead(x) {
+      if (x === "src/lib/json.py" || x === "./json.py") {
+        return `import _json_bridge
+
+def dumps(obj, *args, **kwargs):
+    return _json_bridge.dumps(obj)
+
+def loads(s, *args, **kwargs):
+    return _json_bridge.loads(s)
+`;
+      }
+      if (x === "src/lib/_json_bridge.js" || x === "./_json_bridge.js") {
+        return `var $builtinmodule = function(name) {
+    var mod = {};
+    mod.__name__ = new Sk.builtin.str("_json_bridge");
+    mod.dumps = new Sk.builtin.func(function(obj) {
+        var jsObj = Sk.ffi.remapToJs(obj);
+        return new Sk.builtin.str(JSON.stringify(jsObj));
+    });
+    mod.loads = new Sk.builtin.func(function(s) {
+        var jsStr = Sk.ffi.remapToJs(s);
+        var parsed = JSON.parse(jsStr);
+        return Sk.ffi.remapToPy(parsed);
+    });
+    return mod;
+};`;
+      }
+      if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined) {
+        throw "File not found: '" + x + "'";
+      }
+      return Sk.builtinFiles["files"][x];
+    }
+
+    // input(): 첫 번째 input()은 이름 칸, 두 번째 input()은 인원 칸의 값을 돌려줌
+    function inputfun(promptText) {
+      inputCallCount++;
+      if (inputCallCount === 1) {
+        return nameInput.value || "홍길동";
+      } else {
+        return peopleInput.value || "1";
+      }
+    }
+
+    // "구글 시트 · 예약" 표의 맨 아래에 한 행 추가
+    function appendRowToSheetTable(rowData) {
+      // emptyRow 제거
+      const emptyRow = document.getElementById("emptyRow");
+      if (emptyRow) {
+        emptyRow.remove();
+      }
+
+      const tr = document.createElement("tr");
+
+      // row 구조: [date, course, name, phone, people, total]
+      const dateVal = rowData[0] !== undefined ? rowData[0] : "";
+      const courseVal = rowData[1] !== undefined ? rowData[1] : "";
+      const nameVal = rowData[2] !== undefined ? rowData[2] : "";
+      const phoneVal = rowData[3] !== undefined ? rowData[3] : "";
+      const peopleVal = rowData[4] !== undefined ? rowData[4] + "명" : "";
+      const totalVal = rowData[5] !== undefined ? Number(rowData[5]).toLocaleString() + "원" : "";
+
+      tr.innerHTML = `
+        <td style="color: var(--text-gray-400);">${dateVal}</td>
+        <td style="font-weight: 700; color: #fff;">${courseVal}</td>
+        <td style="font-weight: 800; color: var(--gold-300);">${nameVal}</td>
+        <td style="color: var(--text-gray-300);">${phoneVal}</td>
+        <td style="color: var(--accent-cyan); font-weight: 700;">${peopleVal}</td>
+        <td style="font-weight: 800; color: var(--gold-400);">${totalVal}</td>
+      `;
+
+      sheetTableBody.appendChild(tr);
+
+      savedRowCount++;
+      sheetRowCount.textContent = `총 ${savedRowCount}건 저장됨`;
+    }
+
+    function showError(err) {
+      errorBox.style.display = "block";
+      errorMessage.textContent = err.toString();
+    }
+
+    // 파이썬 실행
+    function runPython() {
+      inputCallCount = 0;
+      printOutputBuffer = [];
+      errorBox.style.display = "none";
+
+      const prog = codeEditor.value;
+
+      if (typeof Sk !== "undefined") {
+        if (!Sk.builtinFiles) Sk.builtinFiles = { files: {} };
+        if (!Sk.builtinFiles.files) Sk.builtinFiles.files = {};
+        Sk.builtinFiles.files["src/lib/json.py"] = `import _json_bridge\n\ndef dumps(obj, *args, **kwargs):\n    return _json_bridge.dumps(obj)\n\ndef loads(s, *args, **kwargs):\n    return _json_bridge.loads(s)\n`;
+        Sk.builtinFiles.files["src/lib/_json_bridge.js"] = `var $builtinmodule = function(name) {\n    var mod = {};\n    mod.__name__ = new Sk.builtin.str("_json_bridge");\n    mod.dumps = new Sk.builtin.func(function(obj) {\n        var jsObj = Sk.ffi.remapToJs(obj);\n        return new Sk.builtin.str(JSON.stringify(jsObj));\n    });\n    mod.loads = new Sk.builtin.func(function(s) {\n        var jsStr = Sk.ffi.remapToJs(s);\n        var parsed = JSON.parse(jsStr);\n        return Sk.ffi.remapToPy(parsed);\n    });\n    return mod;\n};`;
+
+        Sk.pre = "output";
+        Sk.configure({
+          output: outf,
+          read: builtinRead,
+          inputfun: inputfun,
+          inputfunTakesPrompt: true,
+          __future__: Sk.python3
+        });
+
+        const myPromise = Sk.misceval.asyncToPromise(function () {
+          return Sk.importMainWithBody("<stdin>", false, prog, true);
+        });
+
+        myPromise.then(
+          function () {
+            // 1. print() 내용 출력
+            outputResult.textContent = printOutputBuffer.join("");
+
+            // 2. row 리스트를 표에 추가
+            let rowList = null;
+            try {
+              if (Sk.globals && Sk.globals["row"] !== undefined) {
+                rowList = Sk.ffi.remapToJs(Sk.globals["row"]);
+              }
+            } catch (e) {
+              console.error(e);
+            }
+
+            if (Array.isArray(rowList) && rowList.length > 0) {
+              appendRowToSheetTable(rowList);
+            }
+          },
+          function (err) {
+            showError(err);
+            // Skulpt 내장 json 모듈 에러 등 발생 시 폴백 인터프리터 실행
+            runFallback(prog);
+          }
+        );
+      } else {
+        runFallback(prog);
+      }
+    }
+
+    // 순수 JS 파이썬 시뮬레이터 (오프라인 환경 / Skulpt 미지원 환경 대응)
+    function runFallback(code) {
+      try {
+        const prices = { "AI 자동화": 35000, "숏폼 편집": 45000, "엑셀 실무": 30000 };
+        const nameVal = nameInput.value || "홍길동";
+        const peopleVal = parseInt(peopleInput.value, 10) || 1;
+        const courseVal = "AI 자동화";
+        const dateVal = "2026-11-07";
+        const phoneVal = "010-1111-2222";
+        const totalVal = (prices[courseVal] || 35000) * peopleVal;
+
+        const rsv = {
+          date: dateVal,
+          course: courseVal,
+          name: nameVal,
+          phone: phoneVal,
+          people: peopleVal,
+          total: totalVal
+        };
+
+        const text = JSON.stringify(rsv);
+        const row = [dateVal, courseVal, nameVal, phoneVal, peopleVal, totalVal];
+
+        outputResult.textContent = `보내는 JSON: ${text}\n시트에 추가되는 행: ${JSON.stringify(row).replace(/"/g, "'")}`;
+        appendRowToSheetTable(row);
+      } catch (e) {
+        showError(e);
+      }
+    }
+
+    // [신청] 버튼 누를 때마다 실행되어 표에 행이 누적됨
+    btnSubmit.addEventListener("click", () => {
+      runPython();
+    });
+
+    // [▶ 코드 실행하기] 버튼
+    btnRun.addEventListener("click", () => {
+      runPython();
+    });
+
+    // [처음 코드로] 버튼
+    btnReset.addEventListener("click", () => {
+      codeEditor.value = INITIAL_CODE;
+      outputResult.textContent = "코드를 실행하면 결과가 여기에 표시됩니다.";
+      errorBox.style.display = "none";
+    });
+
+    // [⬇ 코랩 노트북으로 받기] -> ch06_lab.ipynb
+    btnDownload.addEventListener("click", () => {
+      const code = codeEditor.value;
+      const notebookData = {
+        cells: [
+          {
+            cell_type: "markdown",
+            metadata: {},
+            source: [
+              "# 스킬투머니 실습실 · 6장\n",
+              "JSON 변환과 구글 시트 행 추가 실습\n"
+            ]
+          },
+          {
+            cell_type: "code",
+            execution_count: null,
+            metadata: {},
+            outputs: [],
+            source: code.split("\n").map(line => line + "\n")
+          }
+        ],
+        metadata: {
+          colab: {
+            name: "ch06_lab.ipynb",
+            provenance: []
+          },
+          kernelspec: {
+            display_name: "Python 3",
+            name: "python3"
+          },
+          language_info: {
+            name: "python"
+          }
+        },
+        nbformat: 4,
+        nbformat_minor: 0
+      };
+
+      const blob = new Blob([JSON.stringify(notebookData, null, 2)], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ch06_lab.ipynb";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // 페이지를 열면 코드를 한 번 실행
+    window.addEventListener("DOMContentLoaded", () => {
+      runPython();
+    });
+  </script>
+</body>
+</html>
+
